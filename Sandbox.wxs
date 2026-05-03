@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="*" Name="Zig Sandbox" Language="1033" Version="1.0.0.0" Manufacturer="ZigSandbox" UpgradeCode="YOUR-GUID-HERE">
+        <Package InstallerVersion="200" Compressed="yes" InstallScope="perUser" />
+
+        <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+        <MediaTemplate EmbedCab="yes" />
+
+        <Feature Id="ProductFeature" Title="Zig Sandbox" Level="1">
+            <ComponentGroupRef Id="ProductComponents" />
+        </Feature>
+    </Product>
+
+    <Fragment>
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="LocalAppDataFolder">
+                <Directory Id="INSTALLFOLDER" Name="ZigSandbox" />
+            </Directory>
+        </Directory>
+    </Fragment>
+
+    <Fragment>
+        <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+            <Component Id="Sandbox.exe" Guid="*">
+                <File Id="Sandbox.exe" Source="zig-out\bin\Sandbox.exe" KeyPath="yes" />
+                <RegistryValue Root="HKCU" Key="Software\ZigSandbox" Name="installed" Type="integer" Value="1" Action="write" />
+                
+                <!-- Install command -->
+                <ServiceControl Id="StartService" Start="install" Stop="both" Remove="uninstall" Name="Sandbox" Wait="yes" />
+            </Component>
+            <Component Id="unicorn.dll" Guid="*">
+                <File Id="unicorn.dll" Source="zig-out\bin\unicorn.dll" KeyPath="yes" />
+            </Component>
+            <Component Id="wintun.dll" Guid="*">
+                <File Id="wintun.dll" Source="zig-out\bin\wintun.dll" KeyPath="yes" />
+            </Component>
+        </ComponentGroup>
+    </Fragment>
+</Wix>
