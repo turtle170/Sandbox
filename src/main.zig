@@ -1,6 +1,12 @@
 const std = @import("std");
 const shell = @import("shell_integration.zig");
 const pe_parser = @import("pe_parser.zig");
+const memory = @import("memory.zig");
+const orchestrator = @import("engine/orchestrator.zig");
+const loader = @import("subsystem/loader.zig");
+const network = @import("network.zig");
+const gui_manager = @import("gui/manager.zig");
+const cpu_features = @import("engine/cpu_features.zig");
 
 pub fn main(init: std.process.Init) !void {
     var it = try init.minimal.args.iterateAllocator(init.gpa);
@@ -23,13 +29,6 @@ pub fn main(init: std.process.Init) !void {
         try runSandbox(first_arg, init);
     }
 }
-
-const memory = @import("memory.zig");
-const orchestrator = @import("engine/orchestrator.zig");
-const loader = @import("subsystem/loader.zig");
-const network = @import("network.zig");
-const gui_manager = @import("gui/manager.zig");
-const cpu_features = @import("engine/cpu_features.zig");
 
 fn runSandbox(path: []const u8, init: std.process.Init) !void {
     const info = try pe_parser.parse(path);
@@ -67,14 +66,23 @@ fn runSandbox(path: []const u8, init: std.process.Init) !void {
     // 4. Initialize GUI
     var gui = try gui_manager.Gui.init(1920, 1080);
     defer gui.deinit();
-    std.debug.print("GUI: Shared Memory Backbuffer initialized.\n", .{});
+    try gui.show();
 
     // 5. Load Executable
     var exe_loader = loader.Loader.init(init.gpa, &mem_manager);
     const entry_point = try exe_loader.loadExecutable(path, init.io);
     std.debug.print("Sandbox ready. Entry Point: 0x{x}\n", .{entry_point});
     
-    std.debug.print("Sandbox running... (Passive mode active)\n", .{});
+    // 6. Spawn Engine Thread
+    const thread = try std.Thread.spawn(.{ .allocator = init.gpa }, orchestrator.SandboxEngine.run, .{ &engine, entry_point, gui.shm_buffer });
+    thread.detach();
+
+    std.debug.print("Sandbox running... (GUI Loop Active)\n", .{});
+
+    // 7. GUI Message Loop (Main Thread)
+    gui.loop();
+    
+    engine.running = false;
 }
 
 fn printUsage() void {
